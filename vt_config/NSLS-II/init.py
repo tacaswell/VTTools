@@ -44,13 +44,67 @@ import yaml
 import importlib
 import collections
 import os
-from vttools import wrap_lib
+import vistrails
 from vttools.vtmods.import_lists import load_config
+import_dict = load_config()
+
+from vttools import wrap_lib
 from vttools.wrap_lib import AutowrapError
 logger = logging.getLogger(__name__)
 
-# get modules to import
-import_dict = load_config()
+import imp
+
+
+class VTImporter(object):
+    """
+
+    """
+    def __init__(self, path):
+        self._path = path
+
+    def find_module(self, fullname, path=None):
+        import os
+        name = fullname.rpartition('.')[-1]
+        if path is None:
+            path = self._path
+        for dn in path:
+            filename = os.path.join(dn, name+'.yaml')
+            if os.path.exists(filename):
+                return StructYAMLLoader(filename)
+        return None
+
+
+class StructYAMLLoader(object):
+    def __init__(self, filename):
+        self._filename = filename
+
+    def load_module(self, fullname):
+        mod = sys.modules.setdefault(fullname,
+                                     imp.new_module(fullname))
+        mod.__file__ = self._filename
+        mod.__loader__ = self
+        with open(self._filename, 'r') as modules:
+            import_dict = yaml.load(modules)
+
+        # import the hand-built VisTrails modules
+        module_list = import_dict['import_modules']
+        for module_path, mod_lst in six.iteritems(module_list):
+            for module_name in mod_lst:
+                mod.__dict__[module_name.strip('.')] = importlib.import_module(
+                    module_name, module_path)
+
+        for func_dict in import_dict['autowrap_func']:
+            try:
+                mod.__dict__[func_dict['func_name']] = (
+                    wrap_lib.wrap_function(**func_dict))
+            except AttributeError:
+                print("failed to find {}".format(func_dict['func_name']))
+
+        return mod
+
+
+def install_importer(path=sys.path):
+    sys.meta_path.append(VTImporter(path))
 
 
 def get_modules():
@@ -96,5 +150,19 @@ def get_modules():
     return all_mods
 
 
+def get_modules2():
+    Module = vistrails.core.modules.vistrails_module.Module
+    modules = []
+    spec_list = ['vttools.vt_wraps']
+    for spec in spec_list:
+        mod = importlib.import_module(spec)
+        for name, obj in six.iteritems(mod.__dict__):
+            if (isinstance(obj, type) and issubclass(obj, Module)):
+                modules.append(obj)
+            elif hasattr(obj, 'vistrails_modules'):
+                modules.extend(obj.vistrails_modules())
+    return modules
+
 # # init the modules list
-_modules = get_modules()
+install_importer()
+_modules = get_modules2()

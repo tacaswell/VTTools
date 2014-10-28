@@ -179,6 +179,7 @@ sig_map = {
     'ndarray': 'basic:Variant',
     'array': 'basic:Variant',
     'array_like': 'basic:Variant',
+    'array-like': 'basic:Variant',
     'np.ndarray': 'basic:Variant',
     'list': 'basic:List',
     'int': 'basic:Integer',

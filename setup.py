@@ -18,7 +18,9 @@ setup(
               'vttools.vtmods.import_lists'
               ],
     include_dirs=[np.get_include()],
-    package_data = {'vttools.vtmods.import_lists': ['*.yaml']}
+    package_data = {'vttools.vtmods.import_lists': ['*.yaml'],
+                    'vttools': ['*.yaml'],
+                    }
     )
 
 
